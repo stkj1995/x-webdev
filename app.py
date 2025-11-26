@@ -117,15 +117,16 @@ def login(lan = "english"):
 
         except Exception as ex:
             ic(ex)
+            code = ex.args[1] if len(ex.args) > 1 else None
+            message = ex.args[0] if len(ex.args) > 0 else str(ex)
 
-            # User errors
-            if ex.args[1] == 400:
-                toast_error = render_template("___toast_error.html", message=ex.args[0])
+            if code == 400:
+                toast_error = render_template("___toast_error.html", message=message)
                 return f"""<browser mix-update="#toast">{ toast_error }</browser>""", 400
 
-            # System or developer error
             toast_error = render_template("___toast_error.html", message="System under maintenance")
             return f"""<browser mix-bottom="#toast">{ toast_error }</browser>""", 500
+
 
         finally:
             if "cursor" in locals(): cursor.close()
@@ -194,83 +195,61 @@ def signup(lan="english"):
             if "cursor" in locals(): cursor.close()
             if "db" in locals(): db.close()
 
-
-# HOME #############################
+#################################
 @app.get("/home")
 @x.no_cache
 def home():
     try:
         user = session.get("user", "")
         if not user: return redirect(url_for("login"))
+
         db, cursor = x.db()
-        q = "SELECT * FROM users JOIN posts ON user_pk = post_user_fk ORDER BY RAND() LIMIT 5"
-        cursor.execute(q)
-        tweets = cursor.fetchall()
-        ic(tweets)
 
-        q = "SELECT * FROM trends ORDER BY RAND() LIMIT 3"
-        cursor.execute(q)
-        trends = cursor.fetchall()
-        ic(trends)
+        # LEFT JOIN so it won't fail if no posts
+        cursor.execute("SELECT * FROM users LEFT JOIN posts ON user_pk = post_user_fk ORDER BY RAND() LIMIT 5")
+        tweets = cursor.fetchall() or []
 
-        q = "SELECT * FROM users WHERE user_pk != %s ORDER BY RAND() LIMIT 3"
-        cursor.execute(q, (user["user_pk"],))
-        suggestions = cursor.fetchall()
-        ic(suggestions)
+        cursor.execute("SELECT * FROM trends ORDER BY RAND() LIMIT 3")
+        trends = cursor.fetchall() or []
+
+        cursor.execute("SELECT * FROM users WHERE user_pk != %s ORDER BY RAND() LIMIT 3", (user["user_pk"],))
+        suggestions = cursor.fetchall() or []
 
         return render_template("home.html", tweets=tweets, trends=trends, suggestions=suggestions, user=user)
     except Exception as ex:
-        ic(ex)
-        return "error"
+        ic(ex)  # Check the actual error
+        return f"error: {ex}"
     finally:
         if "cursor" in locals(): cursor.close()
         if "db" in locals(): db.close()
 
 
+
 # VERIFY ACCOUNT #############################
-# @app.route("/verify-account", methods=["GET"])
-# def verify_account():
-#     try:
-#         user_verification_key = x.validate_uuid4_without_dashes(request.args.get("key", ""))
-#         user_verified_at = int(time.time())
-#         db, cursor = x.db()
-#         q = "UPDATE users SET user_verification_key = '', user_verified_at = %s WHERE user_verification_key = %s"
-#         cursor.execute(q, (user_verified_at, user_verification_key))
-#         db.commit()
-#         if cursor.rowcount != 1: raise Exception("Invalid key", 400)
-#         return redirect(url_for('login', verified="1"))
-#     except Exception as ex:
-#         ic(ex)
-#         if "db" in locals(): db.rollback()
-#         # User errors
-#         if ex.args[1] == 400: return ex.args[0], 400    
+@app.route("/verify-account", methods=["GET"])
+def verify_account():
+    try:
+        user_verification_key = x.validate_uuid4_without_dashes(request.args.get("key", ""))
+        user_verified_at = int(time.time())
+        db, cursor = x.db()
+        q = "UPDATE users SET user_verification_key = '', user_verified_at = %s WHERE user_verification_key = %s"
+        cursor.execute(q, (user_verified_at, user_verification_key))
+        db.commit()
+        if cursor.rowcount != 1: raise Exception("Invalid key", 400)
+        return redirect(url_for('login', verified="1"))
+    except Exception as ex:
+        ic(ex)
+        if "db" in locals(): db.rollback()
+        # User errors
+        if ex.args[1] == 400: return ex.args[0], 400    
 
-#         # System or developer error
-#         return "Cannot verify user"
+        # System or developer error
+        return "Cannot verify user"
 
-#     finally:
-#         if "cursor" in locals(): cursor.close()
-#         if "db" in locals(): db.close()
+    finally:
+        if "cursor" in locals(): cursor.close()
+        if "db" in locals(): db.close()
 
-##################################
-@app.get("/verify/<verification_key>")
-def verify_user(verification_key):
-    db, cursor = x.db()
-    # Find user with that key
-    cursor.execute("SELECT * FROM users WHERE user_verification_key = %s", (verification_key,))
-    user = cursor.fetchone()
-    
-    if not user:
-        return "Invalid verification key", 400
-    
-    # Update user as verified
-    cursor.execute(
-        "UPDATE users SET user_verified_at = NOW() WHERE user_verification_key = %s",
-        (verification_key,)
-    )
-    db.commit()
-    
-    return redirect(url_for("login", verified=True))
 
 
 ##############################
