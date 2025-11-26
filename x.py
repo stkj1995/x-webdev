@@ -23,15 +23,6 @@ app = Flask(__name__)
 UPLOAD_ITEM_FOLDER = './images'
 
 ##############################
-# allowed_languages = ["english", "danish", "spanish"]
-# google_spread_sheet_key = "1TwU2j9Q32xUBA89Gb2iTeHdTAP7r3qAnoFZDUVtUmvo"
-# default_language = "english"
-
-# def lans(key):
-#     with open("dictionary.json", 'r', encoding='utf-8') as file:
-#         data = json.load(file)
-#     return data[key][default_language]
-
 ##############################
 # Multilanguage / Google Sheets setup
 allowed_languages = ["english", "danish", "spanish"]

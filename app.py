@@ -228,29 +228,50 @@ def home():
 
 
 # VERIFY ACCOUNT #############################
-@app.route("/verify-account", methods=["GET"])
-def verify_account():
-    try:
-        user_verification_key = x.validate_uuid4_without_dashes(request.args.get("key", ""))
-        user_verified_at = int(time.time())
-        db, cursor = x.db()
-        q = "UPDATE users SET user_verification_key = '', user_verified_at = %s WHERE user_verification_key = %s"
-        cursor.execute(q, (user_verified_at, user_verification_key))
-        db.commit()
-        if cursor.rowcount != 1: raise Exception("Invalid key", 400)
-        return redirect(url_for('login', verified="1"))
-    except Exception as ex:
-        ic(ex)
-        if "db" in locals(): db.rollback()
-        # User errors
-        if ex.args[1] == 400: return ex.args[0], 400    
+# @app.route("/verify-account", methods=["GET"])
+# def verify_account():
+#     try:
+#         user_verification_key = x.validate_uuid4_without_dashes(request.args.get("key", ""))
+#         user_verified_at = int(time.time())
+#         db, cursor = x.db()
+#         q = "UPDATE users SET user_verification_key = '', user_verified_at = %s WHERE user_verification_key = %s"
+#         cursor.execute(q, (user_verified_at, user_verification_key))
+#         db.commit()
+#         if cursor.rowcount != 1: raise Exception("Invalid key", 400)
+#         return redirect(url_for('login', verified="1"))
+#     except Exception as ex:
+#         ic(ex)
+#         if "db" in locals(): db.rollback()
+#         # User errors
+#         if ex.args[1] == 400: return ex.args[0], 400    
 
-        # System or developer error
-        return "Cannot verify user"
+#         # System or developer error
+#         return "Cannot verify user"
 
-    finally:
-        if "cursor" in locals(): cursor.close()
-        if "db" in locals(): db.close()
+#     finally:
+#         if "cursor" in locals(): cursor.close()
+#         if "db" in locals(): db.close()
+
+##################################
+@app.get("/verify/<verification_key>")
+def verify_user(verification_key):
+    db, cursor = x.db()
+    # Find user with that key
+    cursor.execute("SELECT * FROM users WHERE user_verification_key = %s", (verification_key,))
+    user = cursor.fetchone()
+    
+    if not user:
+        return "Invalid verification key", 400
+    
+    # Update user as verified
+    cursor.execute(
+        "UPDATE users SET user_verified_at = NOW() WHERE user_verification_key = %s",
+        (verification_key,)
+    )
+    db.commit()
+    
+    return redirect(url_for("login", verified=True))
+
 
 ##############################
 @app.get("/logout")
