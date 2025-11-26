@@ -1,0 +1,43 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.so
+
+# Environments
+env/
+venv/
+ENV/
+.venv/
+
+# Flask instance folder (contains secrets)
+instance/
+instance/*
+
+# Flask session files
+flask_session/
+flask_session/*
+
+# Local databases
+*.db
+*.sqlite3
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Credentials
+*.json
+*.key
+*.pem
+
+# Private tokens or local config
+config.py
+*.env
+.env
